@@ -31,8 +31,30 @@ struct DiscordBot {
 }
 impl DiscordBot {
 	async fn generic_message(&self, ctx: Context, mut msg: Message, config: Arc<CompiledConfig>) {
+		// test whether the bot is alive or not
+		// mentions / mentions_me are also true for replies; only wave on an actual <@id> in the text
+		let bot_id = ctx.cache.current_user().id;
+		if msg.content.contains(&format!("<@{bot_id}>")) || msg.content.contains(&format!("<@!{bot_id}>")) {
+			// Discord injects <@bot> when ping-on-reply is enabled; don't wave those
+			if msg.referenced_message.is_none() {
+				// emergency reboot
+				if Some(msg.author.id.get()) == config.root_user_id && msg.content.contains("kill yourself") {
+					msg.react(&ctx.http, '💀').await.ok();
+					std::process::exit(0);
+				}
+
+				msg.react(&ctx.http, '👋').await.ok();
+				return;
+			}
+		}
+
 		// Ignore NotSoBot .dl commands
 		if msg.content.trim().starts_with(".dl ") {
+			return;
+		}
+
+		// Ignore links that are prefixed with !!
+		if msg.content.trim().starts_with("!!") {
 			return;
 		}
 
@@ -190,7 +212,7 @@ impl DiscordBot {
 					..
 				}))),
 			) => {
-				msg.react(&ctx, '🫃').await.ok();
+				msg.react(&ctx, '🤰').await.ok();
 			}
 
 			Err(UploadMediaError::Other(err)) => {
